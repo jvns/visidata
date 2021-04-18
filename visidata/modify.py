@@ -3,6 +3,7 @@ from visidata import *
 option('color_add_pending', 'green', 'color for rows pending add')
 option('color_change_pending', 'reverse yellow', 'color for cells pending modification')
 option('color_delete_pending', 'red', 'color for rows pending delete')
+option('autosave', 'false', 'autosave sheet on every change')
 
 # deferred cached
 @Sheet.lazy_property
@@ -39,6 +40,8 @@ def rowAdded(self, row):
             warning('cannot undo to before commit')
             return
         del sheet._deferredAdds[sheet.rowid(row)]
+    if sheet.options.autosave:
+        commit(sheet)
     vd.addUndo(_undoRowAdded, self, row)
 
 @Column.api
@@ -66,6 +69,8 @@ def cellChanged(col, row, val):
                 _, rowmods = col.sheet._deferredMods[col.sheet.rowid(row)]
                 rowmods[col] = oldval
 
+        if sheet.options.autosave:
+            commit(sheet)
         vd.addUndo(_undoCellChanged, col, row, oldval)
 
 @Sheet.api
@@ -77,6 +82,8 @@ def rowDeleted(self, row):
             warning('cannot undo to before commit')
             return
         del sheet._deferredDels[sheet.rowid(row)]
+    if sheet.options.autosave:
+        commit(sheet)
     vd.addUndo(_undoRowDeleted, self, row)
 
 
@@ -97,6 +104,8 @@ def addRows(sheet, rows, index=None, undo=True):
     def _removeRows():
         sheet.deleteBy(lambda r,sheet=sheet,addedRows=addedRows: sheet.rowid(r) in addedRows, commit=True, undo=False)
 
+    if sheet.options.autosave:
+        commit(sheet)
     if undo:
         vd.addUndo(_removeRows)
 
@@ -136,6 +145,8 @@ def deleteBy(sheet, func, commit=False, undo=True):
             sheet.deleteSourceRow(r)
             ndeleted += 1
 
+    if sheet.options.autosave:
+        commit(sheet)
     if undo:
         vd.addUndo(setattr, sheet, 'rows', oldrows)
 
